@@ -1,0 +1,65 @@
+From a12a84d5ca9bb54df473cc8e6db94da16d2ba93c Mon Sep 17 00:00:00 2001
+From: Martin Greco <martin00greco@gmail.com>
+Date: Fri, 23 Oct 2026 14:15:41 -0300
+Subject: [PATCH 3/4] fix(profile): pass username as Pug render local instead
+ of template source
+
+---
+ routes/userProfile.ts | 23 +----------------------
+ views/userProfile.pug |  2 +-
+ 2 files changed, 2 insertions(+), 23 deletions(-)
+
+diff --git a/routes/userProfile.ts b/routes/userProfile.ts
+index ae5315634..d6840a7ae 100644
+--- a/routes/userProfile.ts
++++ b/routes/userProfile.ts
+@@ -49,32 +49,11 @@ export function getUserProfile () {
+       return
+     }
+ 
+-    let username = user.username
++    const username = user.username || ''
+ 
+     const themeKey = config.get<string>('application.theme') as keyof typeof themes
+     const theme = themes[themeKey] || themes['bluegrey-lightgreen']
+ 
+-    if (utils.isChallengeEnabled(challenges.usernameXssChallenge)) {
+-      if (username?.match(/#{(.*)}/) !== null) {
+-        req.app.locals.abused_ssti_bug = true
+-        const code = username?.substring(2, username.length - 1)
+-        try {
+-          if (!code) {
+-            throw new Error('Username is null')
+-          }
+-          username = eval(code) // eslint-disable-line no-eval
+-        } catch (err) {
+-          username = '\\' + username
+-        }
+-      } else {
+-        username = '\\' + username
+-      }
+-      if (username) {
+-        template = template.replace(/_username_/g, username)
+-      }
+-    } else {
+-      template = template.replace(/_username_/g, '#{username}')
+-    }
+     template = template.replace(/_emailHash_/g, security.hash(user?.email))
+     template = template.replace(/_title_/g, entities.encode(config.get<string>('application.name')))
+     template = template.replace(/_favicon_/g, favicon())
+diff --git a/views/userProfile.pug b/views/userProfile.pug
+index 91c753510..955d1777d 100644
+--- a/views/userProfile.pug
++++ b/views/userProfile.pug
+@@ -40,7 +40,7 @@ html(lang='en')
+             div.grid
+                div.s12.m12.l6
+                   img.img-rounded(src=profileImage, alt='profile picture', width='90%', height='236', style='margin-right: 5%; margin-left: 5%;')
+-                  p(style='margin-top: 8px; color: _textColor_; text-align: center;') _username_
++                  p(style='margin-top: 8px; color: _textColor_; text-align: center;') #{username}
+                   form(action='./profile/image/file', style='margin-top: 16px; width: 90%; margin-right: auto; margin-left: auto;', method='post', enctype='multipart/form-data')
+                     .profile-field
+                       label(for='picture') File Upload:
+-- 
+2.43.0
+

@@ -1,0 +1,37 @@
+From bd6dba8db646ff257252e7fcf609facf0502d731 Mon Sep 17 00:00:00 2001
+From: Martin Greco <martin00greco@gmail.com>
+Date: Fri, 23 Oct 2026 14:11:22 -0300
+Subject: [PATCH 1/4] fix(login): parameterize SQL query to prevent injection
+
+---
+ routes/login.ts | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/routes/login.ts b/routes/login.ts
+index fb9fce357..be77f700b 100644
+--- a/routes/login.ts
++++ b/routes/login.ts
+@@ -31,8 +31,18 @@ export function login () {
+ 
+   return (req: Request, res: Response, next: NextFunction) => {
+     verifyPreLoginChallenges(req) // vuln-code-snippet hide-line
+-    models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email || ''}' AND password = '${security.hash(req.body.password || '')}' AND deletedAt IS NULL`, { model: UserModel, plain: true }) // vuln-code-snippet vuln-line loginAdminChallenge loginBenderChallenge loginJimChallenge
+-      .then((authenticatedUser) => { // vuln-code-snippet neutral-line loginAdminChallenge loginBenderChallenge loginJimChallenge
++    models.sequelize.query(
++      'SELECT * FROM Users WHERE email = :email AND password = :password AND deletedAt IS NULL',
++      {
++        replacements: {
++          email: req.body.email || '',
++          password: security.hash(req.body.password || '')
++        },
++        model: UserModel,
++        plain: true
++      }
++    )
++    .then((authenticatedUser) => { // vuln-code-snippet neutral-line loginAdminChallenge loginBenderChallenge loginJimChallenge
+         const user = utils.queryResultToJson(authenticatedUser)
+         if (user.data?.id && user.data.totpSecret !== '') {
+           res.status(401).json({
+-- 
+2.43.0
+

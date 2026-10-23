@@ -1,0 +1,51 @@
+From 1a90b9025c36652ad3347c4f1ddcd4bde5ccad96 Mon Sep 17 00:00:00 2001
+From: Martin Greco <martin00greco@gmail.com>
+Date: Fri, 23 Oct 2026 14:12:20 -0300
+Subject: [PATCH 2/4] fix(search): parameterize query and fix findAll
+ destructuring
+
+---
+ routes/search.ts | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/routes/search.ts b/routes/search.ts
+index 0749f2332..aac271a41 100644
+--- a/routes/search.ts
++++ b/routes/search.ts
+@@ -4,10 +4,12 @@
+  */
+ 
+ import { type Request, type Response, type NextFunction } from 'express'
++import { Op } from 'sequelize'
+ 
+ import * as utils from '../lib/utils'
+ import * as models from '../models/index'
+ import { UserModel } from '../models/user'
++import { ProductModel } from '../models/product'
+ import { challenges } from '../data/datacache'
+ import * as challengeUtils from '../lib/challengeUtils'
+ 
+@@ -20,8 +22,18 @@ export function searchProducts () {
+   return (req: Request, res: Response, next: NextFunction) => {
+     let criteria: any = req.query.q === 'undefined' ? '' : req.query.q ?? ''
+     criteria = (criteria.length <= 200) ? criteria : criteria.substring(0, 200)
+-    models.sequelize.query(`SELECT * FROM Products WHERE ((name LIKE '%${criteria}%' OR description LIKE '%${criteria}%') AND deletedAt IS NULL) ORDER BY name`) // vuln-code-snippet vuln-line unionSqlInjectionChallenge dbSchemaChallenge
+-      .then(([products]: any) => {
++    const searchPattern = `%${criteria}%`
++
++    ProductModel.findAll({
++      where: {
++        [Op.or]: [
++          { name: { [Op.like]: searchPattern } },
++          { description: { [Op.like]: searchPattern } }
++        ]
++      },
++      order: [['name', 'ASC']]
++    })
++    .then(([products]: any) => {
+         const dataString = JSON.stringify(products)
+         if (challengeUtils.notSolved(challenges.unionSqlInjectionChallenge)) { // vuln-code-snippet hide-start
+           let solved = true
+-- 
+2.43.0
+
